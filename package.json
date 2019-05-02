@@ -1,0 +1,26 @@
+{
+  "name": "fritznode",
+  "version": "0.0.1",
+  "description": "Fritz box API access",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "fritzbox",
+    "api",
+    "connect",
+    "devicelist",
+    "bandwith"
+  ],
+  "author": "rodney42",
+  "license": "MIT",
+  "dependencies": {
+    "simple-get": "^3.0.3",
+    "xml2js-parser": "^1.1.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rodney42/fritznode.git"
+  }
+}
