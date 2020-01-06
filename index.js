@@ -95,6 +95,37 @@ module.exports.fritz = async (opt) => {
                 upMax : dataObj[0].upstream,
                 upCurrent : dataObj[0].us_bps_curr_max
             }
+        }, 
+        getOverview : async ()=>{
+            let data = await http.postForm(createPath('data.lua'), {
+                sid : context.sid,
+                page : 'overview'
+            });
+            let dataObj = JSON.parse(data).data;
+            return {
+                powerConsumption : parseInt(dataObj.fritzos.energy),
+                osVersion : dataObj.fritzos.nspver,
+                netDevicesCount : dataObj.net.active_count,
+                wanConnected : dataObj.wan.led == 'led_green' ? true : false,
+                dslConnected : dataObj.dsl.led == 'led_green' ? true : false,
+                wlan5ghzEnabled : dataObj.wlan5GHzScnd.led == 'led_green' ? true : false,
+                wlan24ghzEnabled : dataObj.wlan24GHz.led == 'led_green' ? true : false,
+            }
+        },
+        getNAS : async ()=>{
+            let data = await http.get(createPath('nas/api/data.lua', {
+                path : '/',
+                limit : 100,
+                c : 'files',
+                a : 'browse'
+            }));
+            let dataObj = JSON.parse(data);
+            return {
+                diskUsed : dataObj.diskInfo.used,
+                diskTotal : dataObj.diskInfo.total,
+                diskFree : dataObj.diskInfo.free,
+                writeRight : dataObj.writeRight,
+            }
         } 
     }
 }
