@@ -1,6 +1,6 @@
 {
   "name": "fritznode",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Fritz box API access",
   "main": "index.js",
   "scripts": {
@@ -14,6 +14,9 @@
     "bandwith"
   ],
   "author": "rodney42",
+  "contributors": [
+    "Peter Peerdeman (https://peterpeerdeman.nl/)"
+  ],
   "license": "MIT",
   "dependencies": {
     "simple-get": "^3.0.3",

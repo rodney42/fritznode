@@ -1,14 +1,17 @@
+/**
+ * Fritz.box access using lua scripting.
+ */
 const http = require('./lib/http.js');
 const log = require('./lib/log.js');
 
 module.exports.fritz = async (opt) => {
     let context = {
-        user : opt.user || process.env.FRITZ_USER || 'admin',
-        password : opt.password || process.env.FRITZ_PASSWORD,
-        host : opt.host || process.env.FRITZ_HOST || 'fritz.box'
+        user : (opt?opt.user:null) || process.env.FRITZ_USER || 'admin',
+        password : (opt?opt.password:null) || process.env.FRITZ_PASSWORD,
+        host : (opt?opt.host:null) || process.env.FRITZ_HOST || 'fritz.box'
     }
     if( !context.password ) {
-        throw new Error('A password must be set.')
+        throw new Error('A password must be set. If not set by the options, you can use the FRITZ_PASSWORD environment variable.')
     }
     var createPath = (action,params) => {
         let url = 'http://'+context.host;
@@ -91,9 +94,11 @@ module.exports.fritz = async (opt) => {
             let dataObj = JSON.parse(data);
             return {
                 downMax : dataObj[0].downstream,
-                downCurrent : dataObj[0].ds_bps_curr_max,
+                //downCurrent : dataObj[0].ds_bps_curr_max,
+                downCurrent : dataObj[0].ds_bps_curr[0]*8,
                 upMax : dataObj[0].upstream,
-                upCurrent : dataObj[0].us_bps_curr_max
+                //upCurrent : dataObj[0].us_bps_curr_max
+                upCurrent : dataObj[0].us_default_bps_curr[0]*8
             }
         }, 
         getOverview : async ()=>{
