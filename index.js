@@ -3,10 +3,12 @@
  */
 const http = require('./lib/http.js');
 const log = require('./lib/log.js');
+const crypto = require('crypto');
+const { allowedNodeEnvironmentFlags } = require('process');
 
 module.exports.fritz = async (opt) => {
     let context = {
-        user : (opt?opt.user:null) || process.env.FRITZ_USER || 'admin',
+        user : (opt?opt.user:null) || process.env.FRITZ_USER,
         password : (opt?opt.password:null) || process.env.FRITZ_PASSWORD,
         host : (opt?opt.host:null) || process.env.FRITZ_HOST || 'fritz.box'
     }
@@ -30,38 +32,75 @@ module.exports.fritz = async (opt) => {
         return url;
     }
 
+    //Calculate the response for a given challenge via PBKDF2
+    calculate_pbkdf2_response = (challenge,password) => {
+        challenge_parts = challenge.split('$');
+        // Extract all necessary values encoded into the challenge
+        iter1 = parseInt(challenge_parts[1]);
+        salt1 = Buffer.from(challenge_parts[2],'hex');
+        iter2 = parseInt(challenge_parts[3]);
+        salt2 = Buffer.from(challenge_parts[4],'hex');
+        // Hash twice, once with static salt...
+        hash1 = crypto.pbkdf2Sync(Buffer.from(password, 'utf8'), salt1, iter1, 32, 'sha256');
+        // Once with dynamic salt.
+        hash2 = crypto.pbkdf2Sync(hash1, salt2, iter2, 32, 'sha256');
+        return challenge_parts[4]+'$'+hash2.toString('hex');
+    }
+
     log.info("Login "+context.user+"@"+context.host+ " ... ");
 
     // Get a challenge
-    let loginResult = await http.getXml(createPath('login_sid.lua'));
-    let challenge = loginResult.SessionInfo.Challenge;
-    
-    log.debug("Challenge "+challenge);
+    let loginResult = await http.getXml(createPath('login_sid.lua',{version:2}));
+    log.debug("Login result "+JSON.stringify(loginResult,2,2));
+    let challenge = ''+loginResult.SessionInfo.Challenge;
+    let user = context.user;
+    if( !user ) {
+        // If user is not set, get the fritz genarated admin user
+        try {
+            user = loginResult.SessionInfo.Users[0].User[0]['_'];
+        } catch(e) {
+            throw new Error('Failed to extract fritz admin user.'+e+'. Please try to set FRITZ_USER enviroment.');
+        }
+    }
 
-    // Resolve the challenge
-    let buffer = Buffer.from(challenge + '-' + context.password, 'UTF-16LE')
-    let challengeResolved = challenge + '-' + require('crypto').createHash('md5').update(buffer).digest('hex')
+    let challengeResolved;
+    
+    if( challenge[0]=='2' ) {
+        // Resolve pbkdf2 challange
+        challengeResolved = calculate_pbkdf2_response(challenge,context.password);
+    } else {
+        // Resolve md5 challenge for older versions
+        let buffer = Buffer.from(challenge + '-' + context.password, 'UTF-16LE');
+        challengeResolved = challenge + '-' + crypto.createHash('md5').update(buffer).digest('hex');
+    }
+    
+    log.debug("challengeResolved "+challengeResolved);
+
     let challengeResponse = await http.getXml(
-        createPath('/login_sid.lua', { username : context.user, response: challengeResolved })
+        createPath('/login_sid.lua', { username : user, response: challengeResolved })
     )
 
+    log.debug("challengeResponse "+JSON.stringify(challengeResponse,2,2));
+
     // Get the session ID.
-    context.sid = challengeResponse.SessionInfo.SID;
+    context.sid = ''+challengeResponse.SessionInfo.SID;
   
     // Check SID
     if (context.sid === '0000000000000000') {
-      throw new Error('Login to Fritz!Box at '+host+' with user '+user+' failed. Invalid login?')
+      throw new Error('Login to Fritz!Box at '+context.host+' with user '+user+' failed. Invalid login?')
     }
 
-    log.debug("Session ID "+context.sid);
+    log.info("Session ID "+context.sid);
 
-    log.info("Login "+context.user+"@"+context.host+ " ... done.");
+    log.info("Login "+user+"@"+context.host+ " ... done.");
     
     return {
         sid : context.sid,
         getDeviceList : async ()=>{
             let data = await http.postForm(createPath('data.lua'), {
                 sid : context.sid,
+                xhrId: 'all',
+                xhr: 1,
                 page : 'netDev'
             });
             let dataObj = JSON.parse(data);
@@ -94,10 +133,8 @@ module.exports.fritz = async (opt) => {
             let dataObj = JSON.parse(data);
             return {
                 downMax : dataObj[0].downstream,
-                //downCurrent : dataObj[0].ds_bps_curr_max,
                 downCurrent : dataObj[0].ds_bps_curr[0]*8,
                 upMax : dataObj[0].upstream,
-                //upCurrent : dataObj[0].us_bps_curr_max
                 upCurrent : dataObj[0].us_default_bps_curr[0]*8
             }
         }, 
@@ -107,14 +144,14 @@ module.exports.fritz = async (opt) => {
                 page : 'overview'
             });
             let dataObj = JSON.parse(data).data;
+            log.info("Overview list : "+JSON.stringify(dataObj,2,2));
             return {
                 powerConsumption : parseInt(dataObj.fritzos.energy),
                 osVersion : dataObj.fritzos.nspver,
                 netDevicesCount : dataObj.net.active_count,
                 wanConnected : dataObj.wan.led == 'led_green' ? true : false,
                 dslConnected : dataObj.dsl.led == 'led_green' ? true : false,
-                wlan5ghzEnabled : dataObj.wlan5GHzScnd.led == 'led_green' ? true : false,
-                wlan24ghzEnabled : dataObj.wlan24GHz.led == 'led_green' ? true : false,
+                wlanConnected : dataObj.wlan.led == 'led_green' ? true : false,
             }
         },
         getNAS : async ()=>{

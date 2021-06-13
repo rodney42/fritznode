@@ -43,6 +43,6 @@ Environment variables supported
 | Name       | Description | Default
 |------------|-------------|---------
 | FRITZ_HOST | Fritz box host name or IP. | fritz.box
-| FRITZ_USER | Fritz user name. | admin
+| FRITZ_USER | Fritz user name. | Defaults to fritz generated admin user
 | FRITZ_PASSWORD | Fritz box password. 
 | LOG_LEVEL | Console log level. Supported are TRACE,DBEUG,INFO,WARN, ERROR | INFO
