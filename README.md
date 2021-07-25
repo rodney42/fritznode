@@ -14,6 +14,10 @@ Returns active and inactive network devices known to the box.
 
 Returns the current download and upload rate.
 
+- toggleDeviceBlockState
+
+Blocks or unblocks the device internet access.
+
 Example:
 ```javascript
 run = async()=>{

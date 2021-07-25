@@ -1,6 +1,6 @@
 {
   "name": "fritznode",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Fritz box API access",
   "main": "index.js",
   "scripts": {
@@ -19,7 +19,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "simple-get": "^3.0.3",
+    "simple-get": "^3.1.0",
     "xml2js-parser": "^1.1.1"
   },
   "repository": {

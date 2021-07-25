@@ -91,12 +91,26 @@ module.exports.fritz = async (opt) => {
     }
 
     log.info("Session ID "+context.sid);
-
     log.info("Login "+user+"@"+context.host+ " ... done.");
+
+    const createDevice = (raw, active) => {
+        return {
+            id : raw.UID,
+            mac : raw.mac,
+            type : raw.type,
+            name : raw.name,
+            active : active,
+            ip : raw.ipv4 || raw.ipv6,
+            port : raw.port,
+            state : raw.state,
+            blocked : raw.state == 'globe_notallowed'
+        }
+    }
     
     return {
         sid : context.sid,
         getDeviceList : async ()=>{
+            log.info("Get device list");
             let data = await http.postForm(createPath('data.lua'), {
                 sid : context.sid,
                 xhrId: 'all',
@@ -104,23 +118,48 @@ module.exports.fritz = async (opt) => {
                 page : 'netDev'
             });
             let dataObj = JSON.parse(data);
-            const createDevice = (raw, active) => {
-                return {
-                    mac : raw.mac,
-                    name : raw.name,
-                    active : active,
-                    ip : raw.ipv4 || raw.ipv6,
-                    port : raw.port
-                }
-            }
             const devices = [];
             dataObj.data.active.forEach( (d) => {
               devices.push( createDevice(d, true) );
             });
             dataObj.data.passive.forEach( (d) => {
-                devices.push( createDevice(d, false) );
-              });
-              return devices;
+              devices.push( createDevice(d, false) );
+            });
+            return devices;
+        },
+        getDeviceDetails : async (deviceid)=>{
+            log.info("Get details for device "+deviceid);
+            let data = await http.postForm(createPath('data.lua'), {
+                sid : context.sid,
+                xhrId: 'all',
+                xhr: 1,
+                page : 'edit_device',
+                dev: deviceid
+            });
+            return {
+                id:     data.vars.dev.UID,
+                mac:    data.vars.dev.mac,
+                name:   data.vars.dev.name.displayName,
+                blocked: data.vars.dev.netAccess.kisi.isDeviceBlocked
+            }
+        },
+        toggleDeviceBlockState : async (deviceid)=>{
+            log.info("Toggle block for device "+deviceid);
+            let payload = {
+                sid : context.sid,
+                xhr: 1,
+                dev: deviceid,
+                block_dev: '',
+                page: 'edit_device',
+                xhr: 1,
+                back_to_page: 'netDev',
+                lang: 'de'
+            }
+            /*if( blocked ) {   // This does not work - only toggle seems possible
+                payload.kisi_profile='filtprof1'   // always filtprof1?  
+            }*/
+            let data = await http.postForm(createPath('data.lua'), payload);
+            return true;
         },
         getBandwithUsage: async() => {
             let data = await http.get(createPath('/internet/inetstat_monitor.lua',
