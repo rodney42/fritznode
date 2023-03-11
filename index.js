@@ -100,14 +100,13 @@ module.exports.fritz = async (opt) => {
             type : raw.type,
             name : raw.name,
             active : active,
-            ip : raw.ipv4 || raw.ipv6,
-            port : raw.port,
-            state : raw.state,
-            blocked : raw.state == 'globe_notallowed'
+            ip : (raw.ipv4 ? raw.ipv4.ip : (raw.ipv6 ? raw.ipv6.ip : null)),
+            ipv4 : (raw.ipv4 ? true : false),
+            ipv6 : (raw.ipv6 ? true : false),
+            blocked : raw.state.class == 'globe_notallowed',
         }
     }
-    
-    return {
+    const fritzHandler = {
         sid : context.sid,
         getDeviceList : async ()=>{
             log.info("Get device list");
@@ -127,54 +126,73 @@ module.exports.fritz = async (opt) => {
             });
             return devices;
         },
-        getDeviceDetails : async (deviceid)=>{
-            log.info("Get details for device "+deviceid);
+        getDeviceDetails : async (deviceId)=>{
+            log.info("Get device details for id "+deviceId);
             let data = await http.postForm(createPath('data.lua'), {
                 sid : context.sid,
                 xhrId: 'all',
+                dev: deviceId,
                 xhr: 1,
-                page : 'edit_device',
-                dev: deviceid
+                page : 'edit_device'
             });
-            return {
-                id:     data.vars.dev.UID,
-                mac:    data.vars.dev.mac,
-                name:   data.vars.dev.name.displayName,
-                blocked: data.vars.dev.netAccess.kisi.isDeviceBlocked
+            let dataObj = JSON.parse(data).data.vars.dev;
+            let resp = {
+                id : dataObj.UID,
+                mac : dataObj.mac,
+                name : dataObj.name.dnsName,
+                active : dataObj.state == 'ONLINE',
+                port : dataObj.devType
             }
+            let topologyArray = dataObj.topology.path.path;
+            if( topologyArray && topologyArray.length>0 ){
+                resp.user = topologyArray[topologyArray.length-1].device.user_UIDs;
+            } else {
+                log.warn("No toplogy entries found");
+            }
+            return resp;
         },
-        toggleDeviceBlockState : async (deviceid)=>{
-            log.info("Toggle block for device "+deviceid);
+        blockDevice : async (deviceId)=>{
+            log.info("Blocking device "+deviceId);
             let payload = {
+                xhr: 1,
                 sid : context.sid,
-                xhr: 1,
-                dev: deviceid,
-                block_dev: '',
-                page: 'edit_device',
-                xhr: 1,
-                back_to_page: 'netDev',
-                lang: 'de'
+                blocked: true,
+                toBeBlocked: deviceId,
+                page: 'kidLis'
             }
-            /*if( blocked ) {   // This does not work - only toggle seems possible
-                payload.kisi_profile='filtprof1'   // always filtprof1?  
-            }*/
             let data = await http.postForm(createPath('data.lua'), payload);
-            return true;
+            let dataObj = JSON.parse(data).data;
+            return dataObj.toBeBlocked === 'ok';
+        },
+        unblockDevice : async (deviceId)=>{
+            log.info("Unblocking device "+deviceId);
+            // We have to get the device details to get the device user id - the deviceid alone does not work
+            let deviceDetails = await fritzHandler.getDeviceDetails(deviceId);
+            let userId = deviceDetails.user;
+            log.info("Device with id "+deviceId+" has user id "+userId);
+            let payload = {
+                xhr: 1,
+                sid : context.sid,
+                blocked : false,
+                toBeBlocked: userId,
+                page: 'kidLis'
+            }
+            let data = await http.postForm(createPath('data.lua'), payload);
+            let dataObj = JSON.parse(data).data;
+            return dataObj.toBeBlocked === 'ok';
         },
         getBandwithUsage: async() => {
-            let data = await http.get(createPath('/internet/inetstat_monitor.lua',
-                {   action:'get_graphic',
-                    xhr:1,
-                    myXhr:1,
-                    useajax:1
-                })
-            );
+            let data =  await http.postForm(createPath('data.lua'), {
+                sid : context.sid,
+                page : 'netMoni'
+            });
             let dataObj = JSON.parse(data);
+            let syncGroup = dataObj.data.sync_groups[0];
             return {
-                downMax : dataObj[0].downstream,
-                downCurrent : dataObj[0].ds_bps_curr[0]*8,
-                upMax : dataObj[0].upstream,
-                upCurrent : dataObj[0].us_default_bps_curr[0]*8
+                downMax : syncGroup.downstream,
+                downCurrent : syncGroup.ds_bps_curr[0]*8,
+                upMax : syncGroup.upstream,
+                upCurrent : syncGroup.us_default_bps_curr[0]*8
             }
         }, 
         getOverview : async ()=>{
@@ -183,7 +201,6 @@ module.exports.fritz = async (opt) => {
                 page : 'overview'
             });
             let dataObj = JSON.parse(data).data;
-            log.info("Overview list : "+JSON.stringify(dataObj,2,2));
             return {
                 powerConsumption : parseInt(dataObj.fritzos.energy),
                 osVersion : dataObj.fritzos.nspver,
@@ -209,4 +226,5 @@ module.exports.fritz = async (opt) => {
             }
         } 
     }
+    return fritzHandler;
 }

@@ -14,9 +14,22 @@ Returns active and inactive network devices known to the box.
 
 Returns the current download and upload rate.
 
-- toggleDeviceBlockState
+- blockDevice
 
-Blocks or unblocks the device internet access.
+Blocks the device internet access.
+
+- unblockDevice
+
+Unblocks the device internet access.
+
+- getOverview
+
+Gets overview information about your fritz.box
+
+- GetNAS
+
+Shows information about your fritz.box NAS
+
 
 Example:
 ```javascript
@@ -39,6 +52,8 @@ Produces
   "upCurrent": 6693
 }
 ```
+
+See the examples folder for more usage scenarios.
 
 
 Environment variables supported
