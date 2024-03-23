@@ -57,7 +57,11 @@ module.exports.fritz = async (opt) => {
     if( !user ) {
         // If user is not set, get the fritz genarated admin user
         try {
-            user = loginResult.SessionInfo.Users[0].User[0]['_'];
+            user = loginResult.SessionInfo.Users[0].User[0]['_']; // The users are a mixed list of string or object
+            if(!user) {
+                user = loginResult.SessionInfo.Users[0].User[0];
+            }
+            log.info("Admin user name is determined as "+user);
         } catch(e) {
             throw new Error('Failed to extract fritz admin user.'+e+'. Please try to set FRITZ_USER enviroment.');
         }
@@ -205,15 +209,16 @@ module.exports.fritz = async (opt) => {
                 powerConsumption : parseInt(dataObj.fritzos.energy),
                 osVersion : dataObj.fritzos.nspver,
                 netDevicesCount : dataObj.net.active_count,
-                wanConnected : dataObj.wan.led == 'led_green' ? true : false,
-                dslConnected : dataObj.dsl.led == 'led_green' ? true : false,
-                wlanConnected : dataObj.wlan.led == 'led_green' ? true : false,
+                wanConnected : dataObj.wan.led == 'led green' ? true : false,
+                dslConnected : dataObj.dsl.led == 'led green' ? true : false,
+                wlanConnected : ( dataObj.wlan[0] && dataObj.wlan[0].led) == 'led green' ? true : false,
             }
         },
         getNAS : async ()=>{
             let data = await http.get(createPath('nas/api/data.lua', {
                 path : '/',
                 limit : 100,
+                sorting : '+filename',
                 c : 'files',
                 a : 'browse'
             }));

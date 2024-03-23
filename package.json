@@ -1,6 +1,6 @@
 {
   "name": "fritznode",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Fritz box API access",
   "main": "index.js",
   "scripts": {

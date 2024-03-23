@@ -24,14 +24,18 @@ Unblocks the device internet access.
 
 - getOverview
 
-Gets overview information about your fritz.box
+Gets overview information about your fritz.box.
+Contains connection status and the recent caller list.
 
 - GetNAS
 
 Shows information about your fritz.box NAS
 
+Example
+........
 
-Example:
+Get the current bandwith usage
+
 ```javascript
 run = async()=>{
     let con = await module.exports.fritz({
