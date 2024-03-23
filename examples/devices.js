@@ -19,19 +19,19 @@ const fix = (val, expected, fillup=' ') => {
 run = async()=>{
     let con = await fritz.fritz();
     let devices = await con.getDeviceList();
-    console.log( fix("Name", 30) + fix("IP", 25) + fix("Type", 10) + fix("ID", 20));
+    console.log( fix("Name", 30) + fix("IP", 20) + fix("MAC", 20) + fix("Type", 10) + fix("ID", 20)+ fix("Active", 6) + fix("Block", 6));
     console.log( fix("", 110, '-'));
     for( n=0; n<devices.length; n++ ) {
         let d = devices[n];
-        if(d.active) { // Only active devices
-            console.log( 
-                  fix(d.name, 30) 
-                + fix(d.ip, 25)
-                + fix(d.type, 10)
-                + fix(d.id, 20)
-                + (d.blocked? 'blocked' : '')
-            );
-        }
+        console.log( 
+                fix(d.name, 30) 
+            + fix(d.ip, 20)
+            + fix(d.mac, 20)
+            + fix(d.type, 10)
+            + fix(d.id, 20)
+            + fix((d.active? '*' : ''), 6)
+            + fix((d.blocked? '*' : ''), 6)
+        );
     }
 };
 run();
